@@ -118,24 +118,61 @@ def parse_text(text):
     return entries
 
 
+def convert_text(text):
+    """Take a raw meal-plan string, return a list of entry dicts.
+
+    Use this directly in a notebook:
+        from mealie_text_to_json import convert_text
+        entries = convert_text(meal_text)
+    """
+    return parse_text(text)
+
+
+def convert_file(path):
+    """Read a text file and return a list of entry dicts."""
+    with open(path, "r", encoding="utf-8") as f:
+        return parse_text(f.read())
+
+
+def save_json(entries, output_path):
+    """Write entries to output_path as JSON. Creates parent dirs if needed."""
+    import os
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
+    print(f"Wrote {len(entries)} entries to {output_path}")
+
+
+def convert_and_save(text, output_path):
+    """One-shot: raw text in, JSON file out. Notebook-friendly.
+
+        from mealie_text_to_json import convert_and_save
+        convert_and_save(meal_text, "/home/britney/Nextcloud/Recipes/JSON/meal_upload.json")
+    """
+    entries = convert_text(text)
+    save_json(entries, output_path)
+    return entries
+
+
 def main():
     parser = argparse.ArgumentParser(description="Convert meal plan text to JSON.")
-    parser.add_argument("input", help="Path to the input text file")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("-f", "--file", help="Path to a text file to convert")
+    source.add_argument("-t", "--text", help="Raw meal plan text, as a string")
     parser.add_argument("-o", "--output", help="Path to write JSON output (default: stdout)")
     args = parser.parse_args()
 
-    with open(args.input, "r", encoding="utf-8") as f:
-        text = f.read()
-
-    entries = parse_text(text)
-    output = json.dumps(entries, indent=2, ensure_ascii=False)
+    if args.file:
+        entries = convert_file(args.file)
+    else:
+        entries = convert_text(args.text)
 
     if args.output:
-        with open(args.output, "w", encoding="utf-8") as f:
-            f.write(output)
-        print(f"Wrote {len(entries)} entries to {args.output}")
+        save_json(entries, args.output)
     else:
-        print(output)
+        print(json.dumps(entries, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
